@@ -13,3 +13,18 @@ You can control:
 5. Sleep mode: on/off (raise temperature by one degree every 3 hours, turn off A/C after 8 hours)
 
 Other features like timers or "I feel" are not supported.
+
+IRelectra uses IRremote to do the heavy lifting.
+
+Usage:
+
+```cpp
+#include "IRremote.h"
+#include "IRelectra.h"
+  
+void loop()
+  IRsend irsend(D3);
+  IRelectra e(&irsend);
+  e.SendElectra(POWER_OFF, MODE_COOL, FAN_LOW, 24, SWING_ON, SLEEP_OFF);
+}
+```
