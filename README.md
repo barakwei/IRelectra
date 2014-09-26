@@ -30,3 +30,5 @@ void loop()
   e.SendElectra(POWER_OFF, MODE_COOL, FAN_LOW, 24, SWING_ON, SLEEP_OFF);
 }
 ```
+
+Big thanks for Chris from AnalysIR (http://www.analysir.com/)
