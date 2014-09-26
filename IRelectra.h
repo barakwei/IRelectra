@@ -16,7 +16,10 @@
 class IRelectra
 {
 public:
+    // Ctor, remote will be used to send the raw IR data
     IRelectra(IRsend* remote);
+    
+    // Sends the specified configuration to the IR led using IRremote
     bool SendElectra(int power, int mode, int fan, int temperature, int swing, int sleep);
 
 private:
