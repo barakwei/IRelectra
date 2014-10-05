@@ -13,6 +13,26 @@
 
 #include "IRremote.h"
 
+#define POWER_OFF 0
+#define POWER_ON  1
+
+#define MODE_COOL 0b001
+#define MODE_HEAT 0b010
+#define MODE_AUTO 0b011
+#define MODE_DRY  0b100
+#define MODE_FAN  0b101
+
+#define FAN_LOW   0b00
+#define FAN_MED   0b01
+#define FAN_HIGH  0b10
+#define FAN_AUTO  0b11
+
+#define SWING_OFF 0b0
+#define SWING_ON  0b1
+
+#define SLEEP_OFF 0b0
+#define SLEEP_ON  0b1
+
 class IRelectra
 {
 public:
