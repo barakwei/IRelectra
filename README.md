@@ -31,4 +31,8 @@ void loop()
 }
 ```
 
+The code has been tested on [Spark core](www.spark.io) and is agnostic to IRremote implementation as long as it implements the sendRaw method as declared [here](https://github.com/shirriff/Arduino-IRremote/blob/master/IRremote.h).
+The demo code uses the IRremote implementation for Spark core from [here](https://github.com/qwertzguy/Spark-Core-IRremote/), the deme code might need to change according to the implementation you're using.
+
+
 Big thanks for Chris from AnalysIR (http://www.analysir.com/)
