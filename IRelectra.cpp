@@ -1,106 +1,59 @@
 /*
  * IRelectra
- * Version 0.8 
- * Copyrights 2014 Barak Weiss
+ * Copyrights 2016 Barak Weiss
  *
  * Many thanks to Chris from AnalysIR
  */
 
 #include "IRelectra.h"
 #include <stdint.h>
+#include <vector>
 
-#define UNIT 1000
+using std::vector;
+
+#define UNIT 992
 #define NUM_BITS 34
 
 IRelectra::IRelectra(IRsend* remote) : _remote(remote)
 {}
 
-// Add bit b to array p at index i
-// This function is used to convert manchester encoding to MARKs and SPACEs
-// p is the pointer to the start of the MARK, SPACE array
-// i is the current index
-// b is the bit we want to add to the MARK, SPACE array
-// A zero bit is one unit MARK and one unit SPACE
-// a one bit is one unit SPACE and one unit MARK
-void IRelectra::addBit(unsigned int* p, int* i, char b)
+// Sends the specified configuration to the IR led
+bool IRelectra::sendElectra(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep)
 {
-    if (((*i) & 1) == 1)
-    {
-        // current index is SPACE
-        if ((b & 1) == 1)
-        {
-            // one is one unit low, then one unit up
-            // since we're pointing at SPACE, we should increase it byte a unit
-            // then add another MARK unit
-            *(p+*i) += UNIT;
-            (*i)++;
-            *(p+*i) = UNIT;
-        }
-        if ((b & 1) == 0)
-        {
-            // we need a MARK unit, then SPACE unit
-            (*i)++;
-            *(p+*i) = UNIT;
-            (*i)++;
-            *(p+*i) = UNIT;
-        }
-    }
-    else if (((*i) & 1) == 0)
-    {
-        // current index is MARK
-        if ((b & 1) == 1)
-        {
-            (*i)++;
-            *(p+*i) = UNIT;
-            (*i)++;
-            *(p+*i) = UNIT;
-        }
-        if ((b & 1) == 0)
-        {
-            *(p+*i) += UNIT;
-            (*i)++;
-            *(p+*i) = UNIT;
-        }
-    }
-
+    // get the data representing the configuration
+    uint64_t code = encodeElectra(power, mode, fan, temperature, swing, sleep);
+    
+    // get the raw data itself with headers, repetition, etc.
+    std::vector<unsigned int> data = generateSignal(code);
+    
+    // send using HW.
+    _remote->sendRaw(data.data(), data.size(), 33);
+    
+    return true;
 }
 
-// Sends the specified configuration to the IR led using IRremote
-// 1. Get the numeric value of the configuration
-// 2. Convert to IRremote compatible array (MARKS and SPACES)
-// 3. Send to IRremote
-bool IRelectra::SendElectra(int power, int mode, int fan, int temperature, int swing, int sleep)
+std::vector<unsigned int> IRelectra::generateSignal(uint64_t code)
 {
-    unsigned int data[200]; //~maximum size of the IR packet
-    int i = 0;
- 
-    // get the data representing the configuration
-    uint64_t code = EncodeElectra(power, mode, fan, temperature, swing, sleep);
-    
+    MarkSpaceArray markspace(UNIT);
+
     // The whole packet looks this:
     //  3 Times: 
     //    3000 usec MARK
     //    3000 used SPACE
     //    Maxchester encoding of the data, clock is ~1000usec
     // 4000 usec MARK
-    for (int k = 0; k<3; k++)
+    for (int k =0; k<3; k++)
     {
-        data[i] = 3 * UNIT; //mark
-        i++;
-        data[i] = 3 * UNIT;
-        for (int j = NUM_BITS - 1; j >= 0; j--)
-        {
-            addBit(data, &i, (code >> j) & 1);
-        }
-        i++;
+        markspace.addMark(3); //mark
+        markspace.addSpace(3); //space
+        markspace.addNumberWithManchesterCode(code, NUM_BITS);
     }
-    data[i] = 4 * UNIT;
-
-    _remote->sendRaw(data, i + 1, 38);
-    return true;
+    markspace.addMark(4);
+    return markspace.data();
 }
 
-// Encodes specific A/C configuration to a number that describes
+#pragma pack(1)
+
 // That configuration has a total of 34 bits
 //    33: Power bit, if this bit is ON, the A/C will toggle it's power.
 // 32-30: Mode - Cool, heat etc.
@@ -113,7 +66,42 @@ bool IRelectra::SendElectra(int power, int mode, int fan, int temperature, int s
 // 17- 2: Zeros
 //     1: One
 //     0: Zero
-uint64_t IRelectra::EncodeElectra(int power, int mode, int fan, int temperature, int swing, int sleep)
+typedef union ElectraCode {
+    uint64_t num;
+    struct {
+        uint8_t zeros1 : 1;
+        uint8_t ones1 : 1;
+        uint16_t zeros2 : 16;
+        uint8_t sleep : 1;
+        uint8_t temperature : 4;
+        uint8_t zeros3 : 2;
+        uint8_t swing : 1;
+        uint8_t zeros4 : 2;
+        uint8_t fan : 2;
+        uint8_t mode : 3;
+        uint8_t power : 1;
+    };
+} ElectraUnion;
+
+#pragma pack()
+
+
+uint64_t IRelectra::encodeElectra(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep)
+{
+    temperature -= 15;
+    ElectraCode code = { 0 };
+    code.ones1 = 1;
+    code.sleep = sleep ? 1 : 0;
+    code.temperature = temperature;
+    code.swing = swing ? 1 : 0;
+    code.fan = fan;
+    code.mode = mode;
+    code.power = power ? 1 : 0;
+    
+    return code.num;
+}
+
+uint64_t encodeElectra2(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep)
 {
     uint64_t num = 0;
     uint64_t power64 = power;
@@ -135,4 +123,74 @@ uint64_t IRelectra::EncodeElectra(int power, int mode, int fan, int temperature,
     num |= 2;
     
     return num;
+}
+
+///
+/// Mark Space Array
+///
+MarkSpaceArray::MarkSpaceArray(uint16_t unitLengthInUsec) : _unitLength(unitLengthInUsec)
+{ }
+    
+void MarkSpaceArray::MarkSpaceArray::addMark(uint16_t units)
+{
+    if (currentState())
+    {
+        addUnitsToCurrentState(units);
+    }
+    else
+    {
+        addUnitsToNextState(units);
+    }
+}
+
+void MarkSpaceArray::addSpace(uint16_t units)
+{
+    if (!currentState())
+    {
+        addUnitsToCurrentState(units);
+    }
+    else
+    {
+        addUnitsToNextState(units);
+    }}
+
+void MarkSpaceArray::addBitWithManchesterCode(uint8_t bit)
+{
+    if (currentState() == (bit & 1))
+    {
+        addUnitsToNextState(1);
+    }
+    else
+    {
+        addUnitsToCurrentState(1);
+    }
+    addUnitsToNextState(1);
+}
+
+void MarkSpaceArray::addNumberWithManchesterCode(uint64_t code, uint8_t numberOfBits)
+{
+   for (int j = numberOfBits - 1; j>=0; j--)
+   {
+       addBitWithManchesterCode((code >> j) & 1);
+   }
+}
+
+void MarkSpaceArray::addUnitsToCurrentState(uint16_t units)
+{
+    _data.back() += _unitLength * units;
+}
+    
+void MarkSpaceArray::addUnitsToNextState(uint16_t units)
+{
+    _data.emplace_back(_unitLength * units);
+}
+
+const std::vector<unsigned int> MarkSpaceArray::data()
+{
+    return _data;
+}
+
+uint8_t MarkSpaceArray::currentState()
+{
+    return _data.size() % 2;
 }
