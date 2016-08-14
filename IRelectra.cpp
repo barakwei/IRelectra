@@ -101,30 +101,6 @@ uint64_t IRelectra::encodeElectra(bool power, IRElectraMode mode, IRElectraFan f
     return code.num;
 }
 
-uint64_t encodeElectra2(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep)
-{
-    uint64_t num = 0;
-    uint64_t power64 = power;
-    uint64_t mode64 = mode;
-    
-    num |= ((power64 & 1) << 33);
-    
-    num |= ((mode64 & 7) << 30);
-    
-    num |= ((fan & 3) << 28);
-
-    num |= ((swing & 1) << 25);
-
-    temperature -= 15;
-    num |= ((temperature & 15) << 19);
-    
-    num |= ((sleep & 1) << 18);
-    
-    num |= 2;
-    
-    return num;
-}
-
 ///
 /// Mark Space Array
 ///
