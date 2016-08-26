@@ -37,13 +37,15 @@ void loop()
 ```
 
 ### The Circuit
-The circuit I used is just like Sparkfun's [Max Power IR LED Kit](https://www.sparkfun.com/products/retired/10732).<br>
-BOM:
-* IR Led
-* 2N3904 Transistor (or 2N2222)
-* 330Ω Resistor
+The circuit I use is just like Sparkfun's [Max Power IR LED Kit](https://www.sparkfun.com/products/retired/10732).<br>
+
+##### BOM
+* IR Led.
+* 2N3904 Transistor (or 2N2222).
+* 330Ω Resistor.
 * 53Ω Resistor (if connecting to 5V input, on 3.3V use 22Ω).
-<br>
+
+#### Schematics
 ![Circuit schematic](images/IR_schem.png)
 ![Breadboard circuit](images/IR_bb.png)
 
