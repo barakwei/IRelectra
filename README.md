@@ -43,7 +43,7 @@ The circuit I use is just like Sparkfun's [Max Power IR LED Kit](https://www.spa
 * IR Led.
 * 2N3904 Transistor (or 2N2222).
 * 330Ω Resistor.
-* 53Ω Resistor (if connecting to 5V input, on 3.3V use 22Ω).
+* 53Ω Resistor (if you use to VIN input, with 3V3 use 22Ω).
 
 #### Schematics
 ![Circuit schematic](images/IR_schem.png)
