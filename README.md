@@ -37,7 +37,9 @@ void loop()
 ```
 
 ### The Circuit
-The circuit I used is just like Sparkfun's [Max Power IR LED Kit](https://www.sparkfun.com/products/retired/10732).
+The circuit I used is just like Sparkfun's [Max Power IR LED Kit](https://www.sparkfun.com/products/retired/10732).<br>
+![Circuit schematic](images/IR_schem.png)
+![Breadboard circuit](images/IR_bb.png)
 
 ### Issues
 If you have an issue/bug/question/request for feature, you can open an issue or contact me directly via email.
