@@ -4,133 +4,11 @@
  *
  * Many thanks to Chris from AnalysIR
  */
-
 #include "IRelectra.h"
 #include "application.h"
 
 #include <initializer_list>
 #include <map>
-
-// A sequence of marks (high) and spaces (low) in microseconds. The first element is mark.
-class MarkSpaceArray
-{
-public:
-
-	// Empty array.
-	MarkSpaceArray()
-	{}
-
-	// Array with values.
-	MarkSpaceArray(std::initializer_list<unsigned int> iList) : _data(iList)
-	{}
-
-	MarkSpaceArray& operator=(std::initializer_list<unsigned int> iList)
-	{	
-		_data.assign(iList);
-		return (*this);
-	}
-
-	// Add a number of usecs of mark to the end of the array.
-	void addMark(uint32_t usec)
-	{
-		if (currentState())
-		{
-			addTimeToCurrentState(usec);
-		}
-		else
-		{
-			addTimeToNextState(usec);
-		}
-	}
-
-	// Add a number of usecs of space to the end of the array.
-	void addSpace(uint32_t usec)
-	{
-		if (!currentState())
-		{
-			addTimeToCurrentState(usec);
-		}
-		else
-		{
-			addTimeToNextState(usec);
-		}
-	}
-
-	// Adds the data of the entire given array to the end of the array.
-	void addArray(const MarkSpaceArray& array)
-	{
-		const auto& data = array.data();
-		uint32_t i = 0;
-		// Special case when the first mark is zero.
-		if (data.size() > 0 && data[0] == 0)
-		{
-			++i;
-		}
-		for (; i < data.size(); ++i)
-		{
-			if (i % 2 == 0)
-			{
-				addMark(data[i]);
-			}
-			else
-			{
-				addSpace(data[i]);
-			}
-		}
-	}
-
-	// Array containing timing for marks and spaces, starts with marks.
-	const std::vector<unsigned int> data() const
-	{
-		return _data;
-	}
-
-	unsigned int* rawData()
-	{
-		return _data.data();
-	}
-
-	unsigned int size() const
-	{
-		return _data.size();
-	}
-
-private:
-
-	std::vector<unsigned int> _data;
-
-	// Add more usec to the current state. For example, if the array
-	// looks like this: { 1000, 1000 } (equal to calling addMark(1000)
-	// followed by addSpace(1000), the current state is SPACE (currentState()==0).
-	// then calling this function with (1000) will change the array to { 1000, 2000 }.
-	void addTimeToCurrentState(uint32_t usec)
-	{
-		if (size() == 0)
-		{ 
-			_data.emplace_back(0);
-			_data.emplace_back(usec);
-		}
-		else
-		{
-		_data.back() += usec;
-		}
-	}
-
-	// Add more time to the other state. For example, if the array
-	// looks like this: { 1000, 1000 } (equal to calling addMark(1)
-	// followed by addSpace(1), the current state is SPACE (currentState()==0).
-	// Then calling this function with (1000) will change the array to { 1000, 1000, 1000 }
-	void addTimeToNextState(uint32_t usec)
-	{
-		_data.emplace_back(usec);
-	}
-
-	// Returns 1 for mark, 0 for space.
-	uint8_t currentState()
-	{
-		return _data.size() % 2;
-	}
-};
 
 // Base class for encoding values (numbers or buffers), any class that derives from this class
 // should implement addZero() and addOne() and by adding values to the _data array. 
@@ -228,46 +106,127 @@ public:
 		_data.addMark(_unitLength);
 		_data.addSpace(3 * _unitLength);
 	}
-	
+
 private:
 	uint16_t _unitLength;
 };
 
-// Base A/C IR remote.
-class ElectraRemote
+MarkSpaceArray::MarkSpaceArray()
+{}
+
+MarkSpaceArray::MarkSpaceArray(std::initializer_list<unsigned int> iList) : _data(iList)
+{}
+
+MarkSpaceArray& MarkSpaceArray::operator=(std::initializer_list<unsigned int> iList)
 {
-protected:
-	virtual MarkSpaceArray packetHeader() = 0;
-	virtual MarkSpaceArray packetTail() = 0;
-	virtual MarkSpaceArray codeHeader() = 0;
-	virtual MarkSpaceArray codeTail() = 0;
-	virtual uint8_t codeRepetitions() = 0;
-	virtual MarkSpaceArray code(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep) = 0;
-public:
-	// In Khz
-	virtual uint8_t modulationFrequency() = 0;
-	MarkSpaceArray fullPacket(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep)
+	_data.assign(iList);
+	return (*this);
+}
+
+void MarkSpaceArray::addMark(uint32_t usec)
+{
+	if (currentState())
 	{
-		MarkSpaceArray packet;
-		MarkSpaceArray codeArr = code(power, mode, fan, temperature, swing, sleep);
-		packet.addArray(packetHeader());
-		for (int i = 0; i < codeRepetitions(); ++i)
-		{
-			packet.addArray(codeHeader());
-			packet.addArray(codeArr);
-			packet.addArray(codeTail());
-		}
-		packet.addArray(packetTail());
-		return packet;
+		addTimeToCurrentState(usec);
 	}
-};
+	else
+	{
+		addTimeToNextState(usec);
+	}
+}
 
-class OrangeElectraRemote : public ElectraRemote
+void MarkSpaceArray::addSpace(uint32_t usec)
 {
-	static const unsigned int baseUnitTime = 992;
-	static const uint8_t numBits = 34;
+	if (!currentState())
+	{
+		addTimeToCurrentState(usec);
+	}
+	else
+	{
+		addTimeToNextState(usec);
+	}
+}
 
-	std::map<IRElectraMode, uint8_t> _remoteModes = {
+void MarkSpaceArray::addArray(const MarkSpaceArray& array)
+{
+	const auto& data = array.data();
+	uint32_t i = 0;
+	// Special case when the first mark is zero.
+	if (data.size() > 0 && data[0] == 0)
+	{
+		++i;
+	}
+	for (; i < data.size(); ++i)
+	{
+		if (i % 2 == 0)
+		{
+			addMark(data[i]);
+		}
+		else
+		{
+			addSpace(data[i]);
+		}
+	}
+}
+
+const std::vector<unsigned int> MarkSpaceArray::data() const
+{
+	return _data;
+}
+
+unsigned int* MarkSpaceArray::rawData()
+{
+	return _data.data();
+}
+
+unsigned int MarkSpaceArray::size() const
+{
+	return _data.size();
+}
+
+void MarkSpaceArray::addTimeToCurrentState(uint32_t usec)
+{
+	if (size() == 0)
+	{
+		_data.emplace_back(0);
+		_data.emplace_back(usec);
+	}
+	else
+	{
+		_data.back() += usec;
+	}
+}
+
+void MarkSpaceArray::addTimeToNextState(uint32_t usec)
+{
+	_data.emplace_back(usec);
+}
+
+uint8_t MarkSpaceArray::currentState() const
+{
+	return _data.size() % 2;
+}
+
+// Base A/C IR remote.
+MarkSpaceArray ElectraRemote::fullPacket(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep) const
+{
+	MarkSpaceArray packet;
+	MarkSpaceArray codeArr = code(power, mode, fan, temperature, swing, sleep);
+	packet.addArray(packetHeader());
+	for (int i = 0; i < codeRepetitions(); ++i)
+	{
+		packet.addArray(codeHeader());
+		packet.addArray(codeArr);
+		packet.addArray(codeTail());
+	}
+	packet.addArray(packetTail());
+	return packet;
+}
+
+class OrangeElectraRemotePriv
+{
+public:
+	std::map<IRElectraMode, uint8_t> remoteModes = {
 		{ IRElectraModeCool, 0b001 },
 		{ IRElectraModeHeat, 0b010 },
 		{ IRElectraModeFan, 0b101 },
@@ -275,13 +234,13 @@ class OrangeElectraRemote : public ElectraRemote
 		{ IRElectraModeAuto, 0b011 }
 	};
 
-	std::map<IRElectraFan, uint8_t> _remoteFan = {
+	std::map<IRElectraFan, uint8_t> remoteFan = {
 		{ IRElectraFanLow, 0b00 },
 		{ IRElectraFanMedium, 0b01 },
 		{ IRElectraFanHigh, 0b10 },
 		{ IRElectraFanAuto, 0b11 }
 	};
-	
+
 #pragma pack(1)
 	typedef union OrangeElectraCode {
 		uint64_t num;
@@ -301,61 +260,65 @@ class OrangeElectraRemote : public ElectraRemote
 	} ElectraUnion;
 #pragma pack()
 
-	MarkSpaceArray packetHeader()
-	{
-		return{};
-	}
-
-	MarkSpaceArray packetTail()
-	{
-		return{ baseUnitTime * 4 };
-	}
-
-	MarkSpaceArray codeHeader()
-	{
-		return{ baseUnitTime * 3, baseUnitTime * 3 };
-	}
-
-	MarkSpaceArray codeTail()
-	{
-		return{};
-	}
-
-	uint8_t codeRepetitions()
-	{
-		return 3;
-	}
-
-public:
-	uint8_t modulationFrequency()
-	{
-		return 33;
-	}
-
-	MarkSpaceArray code(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep)
-	{
-		temperature -= 15; 
-		OrangeElectraCode code = { 0 };
-		code.ones1 = 1;
-		code.sleep = sleep ? 1 : 0;
-		code.temperature = temperature;
-		code.swing = swing ? 1 : 0;
-		code.fan = _remoteFan[fan];
-		code.mode = _remoteModes[mode];
-		code.power = power ? 1 : 0;
-
-		ManchesterIREncoder encoder(baseUnitTime);
-		encoder.addNumber(code.num, numBits);
-		return encoder.data();
-	}
 };
 
-class GreenElectraRemote : public ElectraRemote
+MarkSpaceArray OrangeElectraRemote::packetHeader() const
 {
-	static const unsigned int baseUnitTime = 560;
-	static const uint8_t numBits = 104;
+	return{};
+}
 
-	std::map<IRElectraMode, uint8_t> _remoteModes = {
+MarkSpaceArray OrangeElectraRemote::packetTail() const
+{
+	return{ baseUnitTime * 4 };
+}
+
+MarkSpaceArray OrangeElectraRemote::codeHeader() const
+{
+	return{ baseUnitTime * 3, baseUnitTime * 3 };
+}
+
+MarkSpaceArray OrangeElectraRemote::codeTail() const
+{
+	return{};
+}
+
+uint8_t OrangeElectraRemote::codeRepetitions() const
+{
+	return 3;
+}
+
+uint8_t OrangeElectraRemote::modulationFrequency() const
+{
+	return 33;
+}
+
+MarkSpaceArray OrangeElectraRemote::code(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep) const
+{
+	OrangeElectraRemotePriv priv;
+	temperature -= 15;
+	OrangeElectraRemotePriv::OrangeElectraCode code = { 0 };
+	code.ones1 = 1;
+	code.sleep = sleep ? 1 : 0;
+	code.temperature = temperature;
+	code.swing = swing ? 1 : 0;
+	code.fan = priv.remoteFan[fan];
+	code.mode = priv.remoteModes[mode];
+	code.power = power ? 1 : 0;
+
+	ManchesterIREncoder encoder(baseUnitTime);
+	encoder.addNumber(code.num, numBits);
+	return encoder.data();
+}
+
+const char* OrangeElectraRemote::name()
+{
+    return "OrangeElectraRemote";
+}
+
+class GreenElectraRemotePriv
+{
+public:
+	std::map<IRElectraMode, uint8_t> remoteModes = {
 		{ IRElectraModeCool, 0b001 },
 		{ IRElectraModeHeat, 0b100 },
 		{ IRElectraModeFan, 0b110 },
@@ -363,7 +326,7 @@ class GreenElectraRemote : public ElectraRemote
 		{ IRElectraModeAuto, 0b000 }
 	};
 
-	std::map<IRElectraFan, uint8_t> _remoteFan = {
+	std::map<IRElectraFan, uint8_t> remoteFan = {
 		{ IRElectraFanLow, 0b011 },
 		{ IRElectraFanMedium, 0b010 },
 		{ IRElectraFanHigh, 0b001 },
@@ -417,76 +380,81 @@ class GreenElectraRemote : public ElectraRemote
 		};
 	} ElectraUnion;
 #pragma pack()
-
-	MarkSpaceArray packetHeader()
-	{
-		return{9000, 4500};
-	}
-
-	MarkSpaceArray packetTail()
-	{
-		return{ baseUnitTime };
-	}
-
-	MarkSpaceArray codeHeader()
-	{
-		return{};
-	}
-
-	MarkSpaceArray codeTail()
-	{
-		return{};
-	}
-
-	uint8_t codeRepetitions()
-	{
-		return 1;
-	}
-
-public:
-	uint8_t modulationFrequency()
-	{
-		return 38;
-	}
-
-	uint8_t reverseByte(uint8_t b)
-	{
-		uint8_t newByte = 0;
-		for (int i = 0; i < 8; ++i)
-		{
-			newByte = newByte << 1;
-			newByte |= (b >> i) & 1;
-		}
-		return newByte;
-	}
-
-	MarkSpaceArray code(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep)
-	{
-		GreenElectraCode code = { 0 };
-		code.c3 = 0xC3;
-		code.notVerticalSwing = !swing ? 0b111 : 0;
-		code.temperatureDiv8Minus1 = (temperature / 8) - 1;
-		code.temperatureMod8 = temperature & 8;
-		code.notHorizontalSwing = 0b111;
-		code.minute = 0x0;
-		code.fan = _remoteFan[fan];
-		code.mode = _remoteModes[mode];
-		code.sleep = sleep;
-		code.power = power ? 0x20 : 0;
-		code.button = 0b101;
-
-		int sum = 0;
-		for (unsigned int i = 0; i < sizeof(code.buffer); ++i)
-		{
-			sum += code.buffer[i];
-			code.buffer[i] = reverseByte(code.buffer[i]);
-		}
-		code.sum = reverseByte(sum & 0xFF);
-		PulseDistanceIREncoder encoder(baseUnitTime);
-		encoder.addBuffer(code.buffer, numBits);
-		return encoder.data();
-	}
 };
+
+MarkSpaceArray GreenElectraRemote::packetHeader() const
+{
+	return{ 9000, 4500 };
+}
+
+MarkSpaceArray GreenElectraRemote::packetTail() const
+{
+	return{ baseUnitTime };
+}
+
+MarkSpaceArray GreenElectraRemote::codeHeader() const
+{
+	return{};
+}
+
+MarkSpaceArray GreenElectraRemote::codeTail() const
+{
+	return{};
+}
+
+uint8_t GreenElectraRemote::codeRepetitions() const
+{
+	return 1;
+}
+
+uint8_t GreenElectraRemote::modulationFrequency() const
+{
+	return 38;
+}
+
+uint8_t GreenElectraRemote::reverseByte(uint8_t b)  const
+{
+	uint8_t newByte = 0;
+	for (int i = 0; i < 8; ++i)
+	{
+		newByte = newByte << 1;
+		newByte |= (b >> i) & 1;
+	}
+	return newByte;
+}
+
+MarkSpaceArray GreenElectraRemote::code(bool power, IRElectraMode mode, IRElectraFan fan, int temperature, bool swing, bool sleep) const
+{
+	GreenElectraRemotePriv priv;
+	GreenElectraRemotePriv::GreenElectraCode code = { 0 };
+	code.c3 = 0xC3;
+	code.notVerticalSwing = !swing ? 0b111 : 0;
+	code.temperatureDiv8Minus1 = (temperature / 8) - 1;
+	code.temperatureMod8 = temperature & 8;
+	code.notHorizontalSwing = 0b111;
+	code.minute = 0x0;
+	code.fan = priv.remoteFan[fan];
+	code.mode = priv.remoteModes[mode];
+	code.sleep = sleep;
+	code.power = power ? 0x20 : 0;
+	code.button = 0b101;
+
+	int sum = 0;
+	for (unsigned int i = 0; i < sizeof(code.buffer); ++i)
+	{
+		sum += code.buffer[i];
+		code.buffer[i] = reverseByte(code.buffer[i]);
+	}
+	code.sum = reverseByte(sum & 0xFF);
+	PulseDistanceIREncoder encoder(baseUnitTime);
+	encoder.addBuffer(code.buffer, numBits);
+	return encoder.data();
+}
+
+const char* GreenElectraRemote::name()
+{
+    return "GreenElectraRemote";
+}
 
 IRelectra::IRelectra(IRsend* remote) : _remote(remote)
 {}
