@@ -7,7 +7,7 @@
 #ifndef IRelectra_h
 #define IRelectra_h
 
-#include "IRremote.h"
+#include <IRremote.h>
 
 #include <stdint.h>
 #include <vector>

@@ -5,7 +5,6 @@
  * Many thanks to Chris from AnalysIR
  */
 #include "IRelectra.h"
-#include "application.h"
 
 #include <initializer_list>
 #include <map>
@@ -176,7 +175,7 @@ const std::vector<unsigned int> MarkSpaceArray::data() const
 
 unsigned int* MarkSpaceArray::rawData()
 {
-	return _data.data();
+	return _data.begin();
 }
 
 unsigned int MarkSpaceArray::size() const
@@ -188,8 +187,8 @@ void MarkSpaceArray::addTimeToCurrentState(uint32_t usec)
 {
 	if (size() == 0)
 	{
-		_data.emplace_back(0);
-		_data.emplace_back(usec);
+		_data.push_back(0);
+		_data.push_back(usec);
 	}
 	else
 	{
@@ -199,7 +198,7 @@ void MarkSpaceArray::addTimeToCurrentState(uint32_t usec)
 
 void MarkSpaceArray::addTimeToNextState(uint32_t usec)
 {
-	_data.emplace_back(usec);
+	_data.push_back(usec);
 }
 
 uint8_t MarkSpaceArray::currentState() const
