@@ -6,7 +6,7 @@
 class IRsend
 {
 public:
-    void sendRaw(unsigned int buf[], int len, int hz);
+    virtual void sendRaw(unsigned int buf[], int len, int hz) = 0;
 };
 
 #endif /* IRremote_h */
