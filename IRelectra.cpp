@@ -22,13 +22,13 @@ bool IRelectra::sendElectra(bool power, IRElectraMode mode, IRElectraFan fan, in
 {
     // get the data representing the configuration
     uint64_t code = encodeElectra(power, mode, fan, temperature, swing, sleep);
-    
+
     // get the raw data itself with headers, repetition, etc.
     std::vector<unsigned int> data = generateSignal(code);
-    
+
     // send using HW.
     _remote->sendRaw(data.data(), data.size(), 33);
-    
+
     return true;
 }
 
@@ -37,10 +37,10 @@ std::vector<unsigned int> IRelectra::generateSignal(uint64_t code)
     MarkSpaceArray markspace(UNIT);
 
     // The whole packet looks this:
-    //  3 Times: 
+    //  3 Times:
     //    3000 usec MARK
-    //    3000 used SPACE
-    //    Maxchester encoding of the data, clock is ~1000usec
+    //    3000 usec SPACE
+    //    Manchester encoding of the data, clock is ~1000usec
     // 4000 usec MARK
     for (int k =0; k<3; k++)
     {
@@ -97,7 +97,7 @@ uint64_t IRelectra::encodeElectra(bool power, IRElectraMode mode, IRElectraFan f
     code.fan = fan;
     code.mode = mode;
     code.power = power ? 1 : 0;
-    
+
     return code.num;
 }
 
@@ -106,7 +106,7 @@ uint64_t IRelectra::encodeElectra(bool power, IRElectraMode mode, IRElectraFan f
 ///
 MarkSpaceArray::MarkSpaceArray(uint16_t unitLengthInUsec) : _unitLength(unitLengthInUsec)
 { }
-    
+
 void MarkSpaceArray::MarkSpaceArray::addMark(uint16_t units)
 {
     if (currentState())
@@ -155,7 +155,7 @@ void MarkSpaceArray::addUnitsToCurrentState(uint16_t units)
 {
     _data.back() += _unitLength * units;
 }
-    
+
 void MarkSpaceArray::addUnitsToNextState(uint16_t units)
 {
     _data.emplace_back(_unitLength * units);
